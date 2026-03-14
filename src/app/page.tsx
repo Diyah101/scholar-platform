@@ -68,6 +68,11 @@ export default function Home() {
   const [search, setSearch] = useState("");
   const [countryFilter, setCountryFilter] = useState("All");
   const [fieldFilter, setFieldFilter] = useState("All");
+  const [activeScholarship, setActiveScholarship] = useState<Scholarship | null>(null);
+  const [reminderEmail, setReminderEmail] = useState("");
+  const [reminders, setReminders] = useState<
+    { scholarshipId: number; email: string; createdAt: string }[]
+  >([]);
 
   const countries = useMemo(
     () => ["All", ...Array.from(new Set(SCHOLARSHIPS.map((s) => s.country)))],
@@ -99,8 +104,62 @@ export default function Home() {
     [search, countryFilter, fieldFilter]
   );
 
+  const handleOpenReminder = (scholarship: Scholarship) => {
+    setActiveScholarship(scholarship);
+    setReminderEmail("");
+  };
+
+  const handleCloseReminder = () => {
+    setActiveScholarship(null);
+    setReminderEmail("");
+  };
+
+  const handleSubmitReminder = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!activeScholarship || !reminderEmail.trim()) return;
+
+    setReminders((prev) => [
+      ...prev,
+      {
+        scholarshipId: activeScholarship.id,
+        email: reminderEmail.trim(),
+        createdAt: new Date().toISOString(),
+      },
+    ]);
+
+    handleCloseReminder();
+  };
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-50 antialiased">
+      {/* Sticky Navbar */}
+      <div className="sticky top-0 z-30 border-b border-slate-900/80 bg-slate-950/90 backdrop-blur">
+        <nav className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-6 lg:px-8">
+          <div className="flex items-center gap-2">
+            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-500/90 text-xs font-semibold text-slate-50 shadow-sm">
+              SP
+            </div>
+            <span className="text-sm font-medium tracking-tight text-slate-100">
+              Scholar Platform
+            </span>
+          </div>
+          <div className="flex items-center gap-4 text-xs font-medium">
+            <a
+              href="#browse"
+              className="text-slate-300 transition hover:text-slate-50"
+            >
+              Browse
+            </a>
+            <a
+              href="#signup"
+              className="rounded-full border border-slate-700 bg-slate-900/80 px-3 py-1.5 text-slate-100 shadow-sm transition hover:border-indigo-500 hover:bg-indigo-500 hover:text-white"
+            >
+              Sign Up
+            </a>
+          </div>
+        </nav>
+      </div>
+
       <div className="mx-auto flex min-h-screen max-w-6xl flex-col px-4 pb-12 pt-10 sm:px-6 lg:px-8 lg:pt-14">
         {/* Header */}
         <header className="flex flex-col gap-4 border-b border-slate-800 pb-8 sm:flex-row sm:items-end sm:justify-between">
@@ -120,7 +179,10 @@ export default function Home() {
         </header>
 
         {/* Search + Filters */}
-        <section className="mt-8 flex flex-col gap-4 rounded-2xl border border-slate-800 bg-slate-900/60 p-4 shadow-[0_18px_60px_rgba(15,23,42,0.85)] backdrop-blur">
+        <section
+          id="browse"
+          className="mt-8 flex flex-col gap-4 rounded-2xl border border-slate-800 bg-slate-900/60 p-4 shadow-[0_18px_60px_rgba(15,23,42,0.85)] backdrop-blur"
+        >
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
             <div className="relative flex-1">
               <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-slate-500">
@@ -229,6 +291,7 @@ export default function Home() {
                     </div>
                     <button
                       type="button"
+                      onClick={() => handleOpenReminder(s)}
                       className="inline-flex items-center justify-center rounded-full bg-indigo-500 px-3 py-1.5 text-xs font-medium text-white shadow-sm transition hover:bg-indigo-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
                     >
                       Set Reminder
@@ -239,6 +302,102 @@ export default function Home() {
             </div>
           )}
         </section>
+
+        {/* Reminder Modal */}
+        {activeScholarship && (
+          <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/70 px-4 backdrop-blur-sm">
+            <div className="w-full max-w-md rounded-2xl border border-slate-800 bg-slate-900/95 p-5 shadow-2xl">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h2 className="text-base font-semibold text-slate-50">
+                    Set a reminder
+                  </h2>
+                  <p className="mt-1 text-xs text-slate-400">
+                    We’ll keep this email stored locally for now. In production,
+                    you’d connect this to your notification service.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleCloseReminder}
+                  className="rounded-full p-1 text-slate-500 transition hover:bg-slate-800 hover:text-slate-200"
+                  aria-label="Close"
+                >
+                  <svg
+                    aria-hidden="true"
+                    viewBox="0 0 24 24"
+                    className="h-4 w-4"
+                  >
+                    <path
+                      d="M6 6l12 12M18 6L6 18"
+                      stroke="currentColor"
+                      strokeWidth="1.6"
+                      strokeLinecap="round"
+                    />
+                  </svg>
+                </button>
+              </div>
+
+              <div className="mt-4 rounded-xl border border-slate-800 bg-slate-900/70 p-3 text-xs text-slate-300">
+                <p className="font-medium text-slate-100">
+                  {activeScholarship.title}
+                </p>
+                <p className="mt-1 text-[0.7rem] text-slate-400">
+                  {activeScholarship.country} · {activeScholarship.field} ·
+                  Deadline:{" "}
+                  <span className="font-medium text-slate-100">
+                    {formatDeadline(activeScholarship.deadline)}
+                  </span>
+                </p>
+              </div>
+
+              <form
+                onSubmit={handleSubmitReminder}
+                className="mt-4 space-y-4"
+                id="signup"
+              >
+                <div className="space-y-1">
+                  <label
+                    htmlFor="reminder-email"
+                    className="text-xs font-medium text-slate-200"
+                  >
+                    Email address
+                  </label>
+                  <input
+                    id="reminder-email"
+                    type="email"
+                    required
+                    value={reminderEmail}
+                    onChange={(e) => setReminderEmail(e.target.value)}
+                    placeholder="you@example.com"
+                    className="h-10 w-full rounded-lg border border-slate-700 bg-slate-950/70 px-3 text-sm text-slate-100 placeholder:text-slate-500 outline-none ring-0 transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/40"
+                  />
+                </div>
+
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-[0.7rem] text-slate-500">
+                    This reminder is stored in your browser state only.
+                  </p>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={handleCloseReminder}
+                      className="inline-flex items-center justify-center rounded-full border border-slate-700 px-3 py-1.5 text-xs font-medium text-slate-300 transition hover:bg-slate-800"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      className="inline-flex items-center justify-center rounded-full bg-indigo-500 px-3 py-1.5 text-xs font-medium text-white shadow-sm transition hover:bg-indigo-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900"
+                    >
+                      Confirm
+                    </button>
+                  </div>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
